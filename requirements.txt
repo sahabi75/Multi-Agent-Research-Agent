@@ -1,0 +1,35 @@
+# ============================================
+# requirements.txt
+# These are all the libraries your project needs
+# Install them by running: pip install -r requirements.txt
+# ============================================
+
+# LangGraph - controls the flow between agents
+langgraph
+
+# LangChain - base library that connects everything
+langchain
+
+# Gemini (Google AI) - FREE alternative to OpenAI
+langchain-google-genai
+
+# Groq - another FREE and fast AI model option
+langchain-groq
+
+# Tavily - web search tool (has free plan)
+tavily-python
+
+# FastAPI - creates your backend server
+fastapi
+
+# Uvicorn - runs your FastAPI server
+uvicorn
+
+# Streamlit - creates your frontend UI
+streamlit
+
+# python-dotenv - reads your .env file safely
+python-dotenv
+
+# Requests - for making HTTP calls
+requests

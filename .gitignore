@@ -1,0 +1,17 @@
+
+# Never upload your API keys
+.env
+
+# Never upload the virtual environment folder
+# (it's huge and can be recreated anytime)
+venv/
+env/
+.venv/
+
+# Python cache files (created automatically, not needed)
+__pycache__/
+*.pyc
+*.pyo
+
+# VS Code settings (optional - remove this line if you want to share VS Code settings)
+.vscode/
