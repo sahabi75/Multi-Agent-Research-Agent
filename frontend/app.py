@@ -1,10 +1,20 @@
+import sys
 import streamlit as st
-import requests
 import json
 import os
 from groq import Groq
 from dotenv import load_dotenv
 from datetime import datetime
+
+# Make the repo root importable, so we can use the backend agents directly
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from backend.agents.planner import run_planner
+from backend.agents.searcher import run_searcher
+from backend.agents.summarizer import run_summarizer
+from backend.agents.reporter import run_reporter
 
 load_dotenv()
 
@@ -140,7 +150,8 @@ Reply with only YES or NO. Nothing else.
 """
     response = groq_client.chat.completions.create(
         model    = "openai/gpt-oss-20b",
-        messages = [{"role": "user", "content": prompt}]
+        messages = [{"role": "user", "content": prompt}],
+        reasoning_effort = "low"
     )
     answer = response.choices[0].message.content.strip().upper()
     return "YES" in answer
@@ -164,18 +175,11 @@ def answer_followup(user_message, chat_history, last_report):
 
 def run_research(question):
     try:
-        response = requests.post(
-            f"{BACKEND_URL}/research",
-            json    = {"questions": [question]},
-            timeout = 120
-        )
-        if response.status_code == 200:
-            results = response.json()["results"]
-            if results:
-                return results[0]["report"]
-        return "❌ No report generated."
-    except requests.exceptions.ConnectionError:
-        return "❌ Cannot connect to backend. Make sure FastAPI server is running!"
+        topics         = run_planner(question)
+        search_results = run_searcher(topics)
+        summaries      = run_summarizer(search_results)
+        report         = run_reporter(question, summaries)
+        return report if report else "❌ No report generated."
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
