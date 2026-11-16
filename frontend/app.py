@@ -156,7 +156,7 @@ def answer_followup(user_message, chat_history, last_report):
         messages.append({"role": msg["role"], "content": msg["content"][:500]})
     messages.append({"role": "user", "content": user_message})
     response = groq_client.chat.completions.create(
-        model    = "llama-3.3-70b-versatile",
+        model    = "openai/gpt-oss-20b",
         messages = messages
     )
     return response.choices[0].message.content.strip()
