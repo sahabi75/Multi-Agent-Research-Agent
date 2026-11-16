@@ -139,7 +139,7 @@ User's new message: "{message}"
 Reply with only YES or NO. Nothing else.
 """
     response = groq_client.chat.completions.create(
-        model    = "llama-3.3-70b-versatile",
+        model    = "openai/gpt-oss-20b",
         messages = [{"role": "user", "content": prompt}]
     )
     answer = response.choices[0].message.content.strip().upper()
