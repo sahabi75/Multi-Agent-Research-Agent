@@ -1,15 +1,17 @@
-import os                      # lets Python read your .env keys
-from dotenv import load_dotenv # reads the .env file
-from groq import Groq          # Groq AI — free and fast
+import os                      
+import time                   
+from datetime import date     
+from dotenv import load_dotenv
+from groq import Groq          
 
 # Load your API keys from .env file
 load_dotenv()
 
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY)
 
-
+# Model name in one place, so it is easy to change next time
+MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 
 def run_summarizer(search_results):
@@ -24,25 +26,25 @@ def run_summarizer(search_results):
     print("\n📝 Summarizer Agent started...")
     print(f"📥 Received {len(search_results)} topics to summarize\n")
 
-
+    today = date.today().strftime("%B %d, %Y")
     all_summaries = {}
 
-    
     for i, (topic, articles) in enumerate(search_results.items(), start=1):
 
         print(f"✍️  Summarizing topic {i}/{len(search_results)}: '{topic}'")
 
-        
+        # Combine all articles for this topic into one text block
         combined_text = ""
 
         for j, article in enumerate(articles, start=1):
             combined_text += f"\nArticle {j}: {article['title']}\n"
             combined_text += f"{article['content']}\n"
 
-        
         prompt = f"""
 You are a research summarizer.
-Your job is to read the articles below and write a clear summary.
+Today's date is {today}.
+
+Read the articles below and write a clear summary.
 
 Topic: "{topic}"
 
@@ -51,37 +53,45 @@ Articles:
 
 Instructions:
 - Write a summary of 4 to 6 sentences
+- Use ONLY the information in the articles above
+- Do NOT use your own background knowledge, especially for recent events
+- If the articles do not contain enough information, say so briefly
 - Use simple easy to understand language
-- Only include the most important information
-- Do NOT copy paste from the articles
-- Write in your own words
-- Do NOT add any intro like "Here is a summary" — just start writing
+- Write in your own words, do NOT copy paste
+- Do NOT add any intro like "Here is a summary", just start writing
 """
 
-        
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
+        try:
+            response = client.chat.completions.create(
+                model=MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                reasoning_effort="low"
+            )
 
-        # Get the summary text from the response
-        summary = response.choices[0].message.content.strip()
+            # Get the summary text from the response
+            summary = (response.choices[0].message.content or "").strip()
+
+        except Exception as e:
+            print(f"   ⚠️ Error while summarizing '{topic}': {e}")
+            summary = "Could not generate a summary for this topic."
 
         # Save this topic's summary
         all_summaries[topic] = summary
 
-        print(f"   ✅ Done!")
+        print("   ✅ Done!")
+
+        # Small pause so we do not hit the free tier rate limit
+        if i < len(search_results):
+            time.sleep(5)
 
     print(f"\n✅ Summarizer finished! Summarized {len(all_summaries)} topics.\n")
 
     return all_summaries
-
-
 
 
 if __name__ == "__main__":
