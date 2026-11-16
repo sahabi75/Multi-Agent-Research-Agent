@@ -1,13 +1,16 @@
-import os                     
-from dotenv import load_dotenv 
-from groq import Groq          
-
+import os
+from datetime import date
+from dotenv import load_dotenv
+from groq import Groq
 
 load_dotenv()
 
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY)
+
+# Model name in one place, so it is easy to change next time
+MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+
 
 def run_reporter(user_question, summaries):
     """
@@ -22,6 +25,8 @@ def run_reporter(user_question, summaries):
     print("\n📄 Reporter Agent started...")
     print(f"📥 Received {len(summaries)} summaries to compile\n")
 
+    today = date.today().strftime("%B %d, %Y")
+
     combined_summaries = ""
 
     for topic, summary in summaries.items():
@@ -30,10 +35,11 @@ def run_reporter(user_question, summaries):
 
     # ----------------------------------------
     # Write the prompt for Groq
-    # Tell it to write a proper research report
     # ----------------------------------------
     prompt = f"""
 You are a professional research report writer.
+Today's date is {today}.
+
 Your job is to take research summaries and turn them into one clean report.
 
 The user's original question was:
@@ -43,18 +49,16 @@ Here are the research summaries:
 {combined_summaries}
 
 Instructions:
-- Write a complete research report
+- Write a complete research report in Markdown
 - Start with a short introduction (2-3 sentences)
 - Then write one section for each topic with a clear heading
 - End with a short conclusion (2-3 sentences)
+- Use ONLY the information in the summaries above
+- Do NOT use your own background knowledge, especially for recent events
+- If the summaries do not cover something, do not make it up
 - Use simple clear language
 - Make it easy to read
 - Do NOT add any extra commentary outside the report
-
-Write a research report without any headings or sections.
-Just write everything as plain flowing paragraphs one after another.
-No Introduction heading, no Conclusion heading, no section titles.
-Just plain paragraphs from start to finish.
 """
 
     # ----------------------------------------
@@ -62,19 +66,27 @@ Just plain paragraphs from start to finish.
     # ----------------------------------------
     print("📤 Sending summaries to Groq AI...")
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        max_tokens=2000   # allow longer response for full report
-    )
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            reasoning_effort="low",
+            max_completion_tokens=3000   
+        )
 
-    # Get the report text from the response
-    report = response.choices[0].message.content.strip()
+        report = (response.choices[0].message.content or "").strip()
+
+        if not report:
+            report = "The report could not be generated. Please try again."
+
+    except Exception as e:
+        print(f"⚠️ Error while writing the report: {e}")
+        report = "The report could not be generated. Please try again."
 
     print("📨 Groq responded!")
     print("✅ Reporter finished! Report is ready.\n")
@@ -83,7 +95,7 @@ Just plain paragraphs from start to finish.
 
 
 # ============================================
-# STEP 3 — Test this file directly
+# Test this file directly
 #
 # Run in terminal:
 #     python backend/agents/reporter.py
@@ -95,11 +107,8 @@ if __name__ == "__main__":
     print("  Testing the Reporter Agent")
     print("=" * 50)
 
-    # Original question
     test_question = "What is artificial intelligence and how does it work?"
 
-    # Fake summaries to test with
-    # Normally Agent 3 provides these
     test_summaries = {
         "Definition of artificial intelligence": (
             "Artificial intelligence is the simulation of human intelligence by machines. "
@@ -127,10 +136,8 @@ if __name__ == "__main__":
         )
     }
 
-    # Run the reporter
     report = run_reporter(test_question, test_summaries)
 
-    # Print the full report
     print("=" * 50)
     print("📋 FINAL RESEARCH REPORT:")
     print("=" * 50)
